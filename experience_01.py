@@ -1,12 +1,16 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 import numpy as np
 import keras
 from keras import layers
 from tensorflow import data as tf_data
 import tensorflow as tf
+tf.config.set_visible_devices([], 'GPU')  # Force le CPU uniquement
 import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
 import pandas as pd
+
 
 # print("🖥️  Devices disponibles :")
 # for device in tf.config.list_physical_devices():
