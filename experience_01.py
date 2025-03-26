@@ -26,7 +26,7 @@ import pandas as pd
 # Chargement du dataset Stanford Dogs
 (train_ds_raw, val_ds_raw), ds_info = tfds.load(
     'stanford_dogs',
-    split=['train[:10%]', 'train[10%:12%]'],
+    split=['train[:80%]', 'train[80%:]'],
     with_info=True,
     as_supervised=True,
 )
