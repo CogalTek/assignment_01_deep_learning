@@ -3,98 +3,62 @@ import numpy as np
 import keras
 from keras import layers
 from tensorflow import data as tf_data
+import tensorflow as tf
+import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
+import pandas as pd
 
-# Clean the PetImages Folder
+# print("🖥️  Devices disponibles :")
+# for device in tf.config.list_physical_devices():
+#     print(device)
 
-num_skipped = 0
-for folder_name in ("Cat", "Dog"):
-    folder_path = os.path.join("PetImages", folder_name)
-    for fname in os.listdir(folder_path):
-        fpath = os.path.join(folder_path, fname)
-        try:
-            fobj = open(fpath, "rb")
-            is_jfif = b"JFIF" in fobj.peek(10)
-        finally:
-            fobj.close()
+# gpus = tf.config.list_physical_devices('GPU')
+# if gpus:
+#     print("✅ GPU détecté : TensorFlow peut l'utiliser !")
+# else:
+#     print("❌ Aucun GPU détecté, TensorFlow utilise le CPU.")
 
-        if not is_jfif:
-            num_skipped += 1
-            # Delete corrupted image
-            os.remove(fpath)
 
-print(f"Deleted {num_skipped} images.")
-
-# Create the dataset
-
-image_size = (180, 180)
-batch_size = 128
-
-train_ds, val_ds = keras.utils.image_dataset_from_directory(
-    "PetImages",
-    validation_split=0.2,
-    subset="both",
-    seed=1337,
-    image_size=image_size,
-    batch_size=batch_size,
+# Chargement du dataset Stanford Dogs
+(train_ds_raw, val_ds_raw), ds_info = tfds.load(
+    'stanford_dogs',
+    split=['train[:10%]', 'train[10%:12%]'],
+    with_info=True,
+    as_supervised=True,
 )
 
-# Visualise the data
+# Paramètres globaux
+image_size = (180, 180)
+batch_size = 128
+AUTOTUNE = tf_data.AUTOTUNE
+num_classes = ds_info.features['label'].num_classes
 
-plt.figure(figsize=(10, 10))
-for images, labels in train_ds.take(1):
-    for i in range(9):
-        ax = plt.subplot(3, 3, i + 1)
-        plt.imshow(np.array(images[i]).astype("uint8"))
-        plt.title(int(labels[i]))
-        plt.axis("off")
+# Prétraitement de base : resize des images
+def format_example(image, label):
+    image = tf.image.resize(image, image_size)
+    return image, label
 
-# Using Image data augmentation
+train_ds = train_ds_raw.map(format_example, num_parallel_calls=AUTOTUNE)
+val_ds = val_ds_raw.map(format_example, num_parallel_calls=AUTOTUNE)
 
+# Augmentation des données (horizontal flip + légère rotation)
 data_augmentation_layers = [
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.1),
 ]
 
-def data_augmentation(images):
+def augment(image, label):
     for layer in data_augmentation_layers:
-        images = layer(images)
-    return images
+        image = layer(image)
+    return image, label
 
-plt.figure(figsize=(10, 10))
-for images, _ in train_ds.take(1):
-    for i in range(9):
-        augmented_images = data_augmentation(images)
-        ax = plt.subplot(3, 3, i + 1)
-        plt.imshow(np.array(augmented_images[0]).astype("uint8"))
-        plt.axis("off")
+train_ds = train_ds.map(augment, num_parallel_calls=AUTOTUNE)
 
-# Standardizing the data
+# Préparation des datasets (batching + prefetch)
+train_ds = train_ds.batch(batch_size).prefetch(AUTOTUNE)
+val_ds = val_ds.batch(batch_size).prefetch(AUTOTUNE)
 
-# Option 1: Make it part of the model
-
-input_shape = image_size + (3,)
-inputs = keras.Input(shape=input_shape)
-x = data_augmentation(inputs)
-x = layers.Rescaling(1./255)(x)
-
-# Option 2: apply it to the dataset
-
-# augmented_train_ds = train_ds.map(lambda x, y: (data_augmentation(x, training=True), y))
-
-# Configure the dataset for performance
-
-# Apply `data_augmentation` to the training images.
-train_ds = train_ds.map(
-    lambda img, label: (data_augmentation(img), label),
-    num_parallel_calls=tf_data.AUTOTUNE,
-)
-# Prefetching samples in GPU memory helps maximize GPU utilization.
-train_ds = train_ds.prefetch(tf_data.AUTOTUNE)
-val_ds = val_ds.prefetch(tf_data.AUTOTUNE)
-
-# Build a model
-
+# Modèle CNN inspiré du tutoriel Keras
 def make_model(input_shape, num_classes):
     inputs = keras.Input(shape=input_shape)
 
@@ -104,7 +68,7 @@ def make_model(input_shape, num_classes):
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
 
-    previous_block_activation = x  # Set aside residual
+    previous_block_activation = x  # Pour les résidus
 
     for size in [256, 512, 728]:
         x = layers.Activation("relu")(x)
@@ -117,61 +81,48 @@ def make_model(input_shape, num_classes):
 
         x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
 
-        # Project residual
-        residual = layers.Conv2D(size, 1, strides=2, padding="same")(
-            previous_block_activation
-        )
-        x = layers.add([x, residual])  # Add back residual
-        previous_block_activation = x  # Set aside next residual
+        # Connexion résiduelle
+        residual = layers.Conv2D(size, 1, strides=2, padding="same")(previous_block_activation)
+        x = layers.add([x, residual])
+        previous_block_activation = x
 
+    # Sortie
     x = layers.SeparableConv2D(1024, 3, padding="same")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
-
     x = layers.GlobalAveragePooling2D()(x)
-    if num_classes == 2:
-        units = 1
-    else:
-        units = num_classes
-
     x = layers.Dropout(0.25)(x)
-    # We specify activation=None so as to return logits
-    outputs = layers.Dense(units, activation=None)(x)
+    outputs = layers.Dense(num_classes, activation=None)(x)  # logits
+
     return keras.Model(inputs, outputs)
 
+# Création du modèle
+model = make_model(input_shape=image_size + (3,), num_classes=num_classes)
 
-model = make_model(input_shape=image_size + (3,), num_classes=2)
-keras.utils.plot_model(model, show_shapes=True)
-
-# Train the model
-
-epochs = 25
-
-callbacks = [
-    keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
-]
+# Compilation
 model.compile(
     optimizer=keras.optimizers.Adam(1e-4),
-    loss=keras.losses.BinaryCrossentropy(from_logits=True),
-    metrics=[keras.metrics.BinaryAccuracy(name="acc")],
+    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    metrics=["accuracy"],
 )
-model.fit(
+
+# Entraînement
+epochs = 25
+callbacks = [
+    keras.callbacks.ModelCheckpoint("save_stanford_at_{epoch}.keras"),
+]
+
+history = model.fit(
     train_ds,
     epochs=epochs,
-    callbacks=callbacks,
     validation_data=val_ds,
+    callbacks=callbacks,
 )
 
-# Run inference on new data
+# Sauvegarde finale du modèle entraîné
+model.save("stanford_dogs_model.keras")
 
-img = keras.utils.load_img("PetImages/Cat/6779.jpg", target_size=image_size)
-plt.imshow(img)
+# Export de l'historique d'entraînement
+pd.DataFrame(history.history).to_csv("stanford_dogs_training_log.csv")
 
-img_array = keras.utils.img_to_array(img)
-img_array = keras.ops.expand_dims(img_array, 0)  # Create batch axis
-
-predictions = model.predict(img_array)
-score = float(keras.ops.sigmoid(predictions[0][0]))
-print(f"This image is {100 * (1 - score):.2f}% cat and {100 * score:.2f}% dog.")
-
-model.save("cats_vs_dogs_from_scratch.keras")
+print("✅ Entraînement terminé, modèle et métriques sauvegardés.")
