@@ -4,7 +4,8 @@ import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
 
 # === Paramètres ===
-image_path = "chien2.jpeg"
+# image_path = "coton.jpeg"
+image_path = "golden.jpg"
 model_path = "stanford_dogs_model.keras"
 image_size = (180, 180)
 

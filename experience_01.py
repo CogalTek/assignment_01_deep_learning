@@ -1,12 +1,12 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import numpy as np
 import keras
 from keras import layers
 from tensorflow import data as tf_data
 import tensorflow as tf
-tf.config.set_visible_devices([], 'GPU')  # Force le CPU uniquement
+# tf.config.set_visible_devices([], 'GPU')  # Force le CPU uniquement
 import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -27,8 +27,6 @@ import pandas as pd
 (train_ds_raw, val_ds_raw), ds_info = tfds.load(
     'stanford_dogs',
     split=['train[:80%]', 'train[80%:]'],
-    with_info=True,
-    as_supervised=True,
 )
 
 # Paramètres globaux
@@ -111,7 +109,7 @@ model.compile(
 )
 
 # Entraînement
-epochs = 25
+epochs = 1
 callbacks = [
     keras.callbacks.ModelCheckpoint("save_stanford_at_{epoch}.keras"),
 ]
