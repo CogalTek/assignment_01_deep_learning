@@ -5,6 +5,7 @@ from tensorflow import keras
 from keras import layers
 import pandas as pd
 from load_pet_dataset import load_pet_dataset
+from notify import notify_discord
 
 # ⚙️ Paramètres
 image_size = (180, 180)
@@ -13,6 +14,8 @@ epochs = 5
 
 # 📦 Dataset : cats vs dogs (local)
 train_ds, val_ds = load_pet_dataset(image_size=image_size, batch_size=batch_size)
+
+
 
 # 🧠 Architecture CNN
 def make_model(input_shape):
