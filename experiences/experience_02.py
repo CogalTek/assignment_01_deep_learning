@@ -15,7 +15,9 @@ epochs = 5
 train_ds, val_ds = load_pet_dataset(image_size=image_size, batch_size=batch_size)
 
 # 🔁 Charger le modèle préentraîné
-base_model = keras.models.load_model("../stanford_dogs/stanford_dogs_model.keras")
+base_model = keras.models.load_model("../stanford_dogs/stanford_dogs_training_log_v3.keras")
+
+base_model.summary()
 
 # ✂️ Supprimer la dernière couche et en ajouter une nouvelle
 x = base_model.layers[-2].output  # la couche juste avant la Dense(120)
@@ -31,7 +33,7 @@ model.compile(
 
 # 🚀 Réentraîner
 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
-model.save("../PetImages/Models/cats_vs_dogs_from_transfer_exp2.keras")
-pd.DataFrame(history.history).to_csv("../PetImages/Models/training_log_ex2.csv")
+model.save("../PetImages/Models/cats_vs_dogs_from_transfer_exp2_v2.keras")
+pd.DataFrame(history.history).to_csv("../PetImages/Models/training_log_ex2_v2.csv")
 
 print("✅ Expérience 2 terminée.")

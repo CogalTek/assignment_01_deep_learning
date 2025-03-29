@@ -1,3 +1,5 @@
+# Stanford Dogs Dataset Training Script
+
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
@@ -92,6 +94,7 @@ def make_model(input_shape, num_classes):
     outputs = layers.Dense(units, activation=None)(x)
     return keras.Model(inputs, outputs)
 model = make_model(image_size + (3,), num_classes)
+
 model.compile(
     optimizer=keras.optimizers.Adam(1e-4),
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
