@@ -11,6 +11,8 @@ image_size = (180, 180)
 batch_size = 32
 AUTOTUNE = tf.data.AUTOTUNE
 
+notify_discord("📊 Modèle Stanford Dogs depart !")
+
 # 📆 Chargement du dataset Stanford Dogs
 (train_ds_raw, val_ds_raw), ds_info = tfds.load(
     'stanford_dogs',
@@ -48,12 +50,14 @@ val_ds = val_ds.batch(batch_size).prefetch(AUTOTUNE)
 
 def make_model(input_shape, num_classes):
     inputs = keras.Input(shape=input_shape)
-    x = layers.Rescaling(1. / 255)(inputs)
+
+    # Entry block
+    x = layers.Rescaling(1.0 / 255)(inputs)
     x = layers.Conv2D(128, 3, strides=2, padding="same")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
 
-    previous_block_activation = x
+    previous_block_activation = x  # Set aside residual
 
     for size in [256, 512, 728]:
         x = layers.Activation("relu")(x)
@@ -65,19 +69,28 @@ def make_model(input_shape, num_classes):
         x = layers.BatchNormalization()(x)
 
         x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
-        residual = layers.Conv2D(size, 1, strides=2, padding="same")(previous_block_activation)
-        x = layers.add([x, residual])
-        previous_block_activation = x
+
+        # Project residual
+        residual = layers.Conv2D(size, 1, strides=2, padding="same")(
+            previous_block_activation
+        )
+        x = layers.add([x, residual])  # Add back residual
+        previous_block_activation = x  # Set aside next residual
 
     x = layers.SeparableConv2D(1024, 3, padding="same")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
+
     x = layers.GlobalAveragePooling2D()(x)
+    if num_classes == 2:
+        units = 1
+    else:
+        units = num_classes
+
     x = layers.Dropout(0.25)(x)
-    outputs = layers.Dense(num_classes)(x)  # logits (pas de softmax ici)
-
+    # We specify activation=None so as to return logits
+    outputs = layers.Dense(units, activation=None)(x)
     return keras.Model(inputs, outputs)
-
 model = make_model(image_size + (3,), num_classes)
 model.compile(
     optimizer=keras.optimizers.Adam(1e-4),
@@ -98,7 +111,7 @@ history = model.fit(
 )
 
 # 📁 Sauvegarde finale
-model.save("../stanford_dogs/stanford_dogs_model_v2.keras")
-pd.DataFrame(history.history).to_csv("../stanford_dogs/stanford_dogs_training_log_v2.csv")
+model.save("../stanford_dogs/stanford_dogs_model_v3.keras")
+pd.DataFrame(history.history).to_csv("../stanford_dogs/stanford_dogs_training_log_v3.csv")
 
 notify_discord("📊 Modèle Stanford Dogs entraîné et sauvegardé !", mention=False)
