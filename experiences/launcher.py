@@ -2,14 +2,6 @@ import subprocess
 from notify import notify_discord
 
 try:
-    # print("🚀 Entraînement de experience_01...")
-    # subprocess.run(["python", "experience_01.py"], check=True)
-    # print("✅ experience_01 terminé avec succès.\n")
-
-    # print("🚀 Entraînement de stanford_train...")
-    # subprocess.run(["python", "stanford_train.py"], check=True)
-    # print("✅ stanford_train terminé avec succès.\n")
-
     print("🚀 Entraînement de experience2...")
     notify_discord(f"🚀 Entraînement de experience2")
 
@@ -21,6 +13,12 @@ try:
 
     subprocess.run(["python", "experience_03.py"], check=True)
     print("✅ experience3 terminé avec succès.\n")
+
+    print("🚀 Entraînement de experience4...")
+    notify_discord(f"🚀 Entraînement de experience4")
+
+    subprocess.run(["python", "experience_04.py"], check=True)
+    print("✅ experience4 terminé avec succès.\n")
 
 except subprocess.CalledProcessError as e:
     print("❌ Une erreur est survenue lors de l'exécution :")

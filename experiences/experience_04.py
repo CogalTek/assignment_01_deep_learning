@@ -13,7 +13,7 @@ epochs = 25
 # 📦 Dataset : Cats vs Dogs (local)
 train_ds, val_ds = load_pet_dataset(image_size=image_size, batch_size=batch_size)
 
-notify_discord("📦 Expérience 3 : remplacement de la sortie + premières convolutions.")
+notify_discord("📦 Expérience 4 : remplacement de la sortie + deux dernières convolutions.")
 
 # 🔁 Charger le modèle Stanford Dogs
 base_model = keras.models.load_model("../stanford_dogs/stanford_dogs_model_v3.keras")
@@ -24,7 +24,7 @@ base_model.summary()
 # 🧠 Créer un nouveau modèle depuis zéro, mais en conservant l'architecture globale
 inputs = keras.Input(shape=image_size + (3,), name="input_layer")
 
-# Remplacer les deux premières couches convolutives
+# Garder les premières couches identiques
 x = layers.Rescaling(1.0 / 255, name="rescaling")(inputs)
 x = layers.Conv2D(128, 3, strides=2, padding="same", name="conv2d")(x)
 x = layers.BatchNormalization(name="batch_normalization")(x)
@@ -33,7 +33,7 @@ x = layers.Activation("relu", name="activation")(x)
 # Stocker la première activation pour la connexion résiduelle
 previous_block_activation = x
 
-# Premier bloc (corresponds au bloc avec size=256 dans l'architecture d'origine)
+# Premier bloc (bloc avec size=256)
 x = layers.Activation("relu", name="activation_1")(x)
 x = layers.SeparableConv2D(256, 3, padding="same", name="separable_conv2d")(x)
 x = layers.BatchNormalization(name="batch_normalization_1")(x)
@@ -47,7 +47,6 @@ residual = layers.Conv2D(256, 1, strides=2, padding="same", name="conv2d_1")(pre
 x = layers.add([x, residual])
 previous_block_activation = x
 
-# À partir d'ici nous réutilisons l'architecture et les poids du modèle Stanford Dogs
 # Bloc avec size=512
 x = layers.Activation("relu", name="activation_3")(x)
 x = layers.SeparableConv2D(512, 3, padding="same", name="separable_conv2d_2")(x)
@@ -75,10 +74,17 @@ x = layers.MaxPooling2D(3, strides=2, padding="same", name="max_pooling2d_2")(x)
 residual = layers.Conv2D(728, 1, strides=2, padding="same", name="conv2d_3")(previous_block_activation)
 x = layers.add([x, residual], name="add_2")
 
-# Bloc final
-x = layers.SeparableConv2D(1024, 3, padding="same", name="separable_conv2d_6")(x)
-x = layers.BatchNormalization(name="batch_normalization_7")(x)
-x = layers.Activation("relu", name="activation_7")(x)
+# Bloc final - REMPLACER LES DEUX DERNIÈRES COUCHES CONVOLUTIVES
+# Ici, nous remplaçons les deux dernières couches convolutives
+x = layers.SeparableConv2D(1024, 5, padding="same", name="custom_separable_conv2d_6")(x)  # Filtre 5x5 au lieu de 3x3
+x = layers.BatchNormalization(name="custom_batch_normalization_7")(x)
+x = layers.Activation("relu", name="custom_activation_7")(x)
+
+# Ajout d'une couche convolutive supplémentaire (non présente dans le modèle d'origine)
+x = layers.SeparableConv2D(1536, 3, padding="same", name="custom_separable_conv2d_7")(x)
+x = layers.BatchNormalization(name="custom_batch_normalization_8")(x)
+x = layers.Activation("relu", name="custom_activation_8")(x)
+
 x = layers.GlobalAveragePooling2D(name="global_average_pooling2d")(x)
 x = layers.Dropout(0.25, name="dropout")(x)
 
@@ -92,11 +98,10 @@ model = Model(inputs=inputs, outputs=outputs)
 model.summary()
 
 # 📦 Copier les poids des couches correspondantes à partir du modèle Stanford Dogs
-# Les deux premières convolutions et la couche de sortie sont déjà remplacées
-# Nous ne transférons que les poids des couches du milieu
+# Les deux dernières convolutions et la couche de sortie sont déjà remplacées
 for layer_new in model.layers:
-    # Exclure les deux premières couches conv et la couche de sortie
-    if layer_new.name.startswith(("rescaling", "conv2d", "batch_normalization", "activation", "separable_conv2d", "batch_normalization_1", "activation_1", "separable_conv2d_1", "batch_normalization_2", "max_pooling2d", "conv2d_1", "output_layer")):
+    # Exclure les couches personnalisées et la couche de sortie
+    if layer_new.name.startswith(("custom_", "output_layer")):
         continue
 
     # Chercher la couche correspondante dans le modèle de base
@@ -120,7 +125,7 @@ model.compile(
 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 
 # 💾 Sauvegarde
-model.save("../PetImages/Models/cats_vs_dogs_from_transfer_exp3.keras")
-pd.DataFrame(history.history).to_csv("../PetImages/Models/training_log_ex3.csv")
+model.save("../PetImages/Models/cats_vs_dogs_from_transfer_exp4.keras")
+pd.DataFrame(history.history).to_csv("../PetImages/Models/training_log_ex4.csv")
 
-notify_discord("✅ Expérience 3 terminée avec succès !")
+notify_discord("✅ Expérience 4 terminée avec succès !")

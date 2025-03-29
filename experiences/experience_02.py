@@ -9,13 +9,13 @@ from load_pet_dataset import load_pet_dataset
 # ⚙️ Paramètres
 image_size = (180, 180)
 batch_size = 32
-epochs = 5
+epochs = 50
 
 # 📦 Dataset : cats vs dogs (local)
 train_ds, val_ds = load_pet_dataset(image_size=image_size, batch_size=batch_size)
 
 # 🔁 Charger le modèle préentraîné
-base_model = keras.models.load_model("../stanford_dogs/stanford_dogs_training_log_v3.keras")
+base_model = keras.models.load_model("../stanford_dogs/stanford_dogs_model_v3.keras")
 
 base_model.summary()
 
