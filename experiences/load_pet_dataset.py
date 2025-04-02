@@ -3,6 +3,7 @@ import keras
 from keras import layers
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Préparation du dataset Cats vs Dogs
 def load_pet_dataset(image_size=(180, 180), batch_size=128):
@@ -32,6 +33,8 @@ def load_pet_dataset(image_size=(180, 180), batch_size=128):
         batch_size=batch_size,
     )
 
+    class_names = train_ds.class_names  # 💡 déplacer ici !
+
     # Data augmentation
     data_augmentation = keras.Sequential([
         layers.RandomFlip("horizontal"),
@@ -41,9 +44,21 @@ def load_pet_dataset(image_size=(180, 180), batch_size=128):
     def augment(img, label):
         return data_augmentation(img), label
 
+    def show_batch(dataset):
+        plt.figure(figsize=(10, 10))
+        for images, labels in dataset.take(1):
+            for i in range(9):  # afficher 9 images
+                ax = plt.subplot(3, 3, i + 1)
+                plt.imshow(images[i].numpy().astype("uint8"))
+                plt.title(class_names[labels[i]])
+                plt.axis("off")
+        plt.show()
+
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.map(augment, num_parallel_calls=AUTOTUNE)
     train_ds = train_ds.prefetch(AUTOTUNE)
     val_ds = val_ds.prefetch(AUTOTUNE)
+
+    show_batch(train_ds)
 
     return train_ds, val_ds
