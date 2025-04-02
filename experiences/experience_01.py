@@ -10,7 +10,7 @@ from notify import notify_discord
 # ⚙️ Paramètres
 image_size = (180, 180)
 batch_size = 32
-epochs = 5
+epochs = 25
 
 # 📦 Dataset : cats vs dogs (local)
 train_ds, val_ds = load_pet_dataset(image_size=image_size, batch_size=batch_size)

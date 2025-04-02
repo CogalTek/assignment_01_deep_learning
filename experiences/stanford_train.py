@@ -8,7 +8,7 @@ import tensorflow_datasets as tfds
 from notify import notify_discord
 
 # ⚙️ Paramètres
-epochs = 5
+epochs = 25
 image_size = (180, 180)
 batch_size = 32
 AUTOTUNE = tf.data.AUTOTUNE
